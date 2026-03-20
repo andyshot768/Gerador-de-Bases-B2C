@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Gerador de Base NPS</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --bg:       #0d0b14;
+  --surface:  #17132a;
+  --surface2: #1f1a36;
+  --surface3: #271f44;
+  --border:   #2e2554;
+  --border2:  #3d3470;
+  --purple:   #7c3aed;
+  --purple2:  #9d5df5;
+  --purple3:  #c4b5fd;
+  --accent:   #a855f7;
+  --green:    #22c55e;
+  --red:      #f87171;
+  --amber:    #f59e0b;
+  --text:     #f1eeff;
+  --muted:    #7c6fa8;
+  --muted2:   #9d90c8;
+  --sans:     'Nunito', sans-serif;
+  --mono:     'DM Mono', monospace;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  min-height: 100vh;
+  padding: 28px 28px 72px;
+}
+
+/* HEADER */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 32px;
+}
+.logo {
+  width: 40px; height: 40px;
+  background: var(--purple);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 0 20px rgba(124,58,237,0.4);
+}
+.header-text h1 { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; }
+.header-text p  { font-size: 11px; color: var(--muted2); font-family: var(--mono); margin-top: 1px; }
+.header-badge {
+  margin-left: auto;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--purple3);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+/* SECTION LABEL */
+.section-label {
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+/* CARDS GRID — dois cards idênticos lado a lado */
+.cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.upload-card {
+  background: var(--surface);
+  border: 1.5px dashed var(--border2);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.2s, background 0.2s;
+}
+.upload-card:hover   { border-color: var(--purple2); background: var(--surface2); }
+.upload-card.loaded  { border-color: var(--purple); border-style: solid; }
+
+/* card head — idêntico nos dois */
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.card-icon {
+  width: 34px; height: 34px;
+  background: var(--surface3);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.card-title { font-size: 13px; font-weight: 700; }
+.card-sub   { font-size: 10px; color: var(--muted2); font-family: var(--mono); margin-top: 2px; }
+
+/* card body — idêntico nos dois */
+.card-body {
+  flex: 1;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drop-area {
+  border: 1px dashed var(--border2);
+  border-radius: 10px;
+  padding: 18px 14px;
+  text-align: center;
+  position: relative;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.15s;
+}
+.drop-area:hover { border-color: var(--purple2); background: var(--surface3); }
+.drop-area input[type=file] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.drop-hint { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+.file-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.file-tag-name  { flex:1; font-family:var(--mono); font-size:11px; color:var(--purple3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.file-tag-count { font-family:var(--mono); font-size:10px; color:var(--muted); white-space:nowrap; }
+.file-tag-remove { background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; line-height:1; padding:0; flex-shrink:0; }
+.file-tag-remove:hover { color:var(--red); }
+
+.add-file-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--muted2);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+  overflow: hidden;
+}
+.add-file-btn:hover { border-color:var(--purple2); color:var(--purple3); }
+.add-file-btn input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+
+.card-note {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: var(--mono);
+  text-align: center;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+/* CONTROLS */
+.controls {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 22px;
+  margin-bottom: 14px;
+}
+.controls-title {
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 14px;
+}
+.controls-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.ctrl-group { display:flex; flex-direction:column; gap:6px; }
+.ctrl-label { font-size:10px; font-family:var(--mono); color:var(--muted2); text-transform:uppercase; letter-spacing:0.7px; }
+
+.ctrl-group input[type=text].ctrl-text {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 9px 13px;
+  width: 140px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.ctrl-group input[type=text].ctrl-text:focus { border-color: var(--purple); }
+.ctrl-group input[type=text].ctrl-text::placeholder { color: var(--muted); }
+
+
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 9px 13px;
+  width: 158px;
+  outline: none;
+  transition: border-color 0.2s;
+  cursor: pointer;
+}
+.ctrl-group input[type=date]:focus { border-color: var(--purple); }
+.ctrl-group input[type=date]::-webkit-calendar-picker-indicator {
+  filter: invert(0.6) sepia(1) saturate(3) hue-rotate(230deg);
+  cursor: pointer;
+}
+
+.date-sep { font-size:13px; color:var(--muted); padding-bottom:10px; font-family:var(--mono); }
+
+.quick-btns { display:flex; gap:6px; flex-wrap:wrap; }
+.qbtn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted2);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.qbtn:hover  { border-color:var(--purple2); color:var(--purple3); }
+.qbtn.active { background:var(--purple); border-color:var(--purple); color:#fff; }
+
+.run-btn {
+  margin-left: auto;
+  background: var(--purple);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 11px 30px;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(124,58,237,0.35);
+}
+.run-btn:hover   { opacity: 0.88; }
+.run-btn:active  { transform: scale(0.97); }
+.run-btn:disabled { opacity:0.35; cursor:not-allowed; box-shadow:none; }
+
+/* LOG */
+.log-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 2;
+  margin-bottom: 14px;
+  display: none;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.log-box.visible { display:block; }
+.log-info { color:var(--muted2); }
+.log-ok   { color:var(--green); }
+.log-warn { color:var(--amber); }
+.log-err  { color:var(--red); }
+
+/* PREVIEW */
+.preview-wrap {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.preview-wrap.visible { display:block; }
+
+.preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.preview-head-title { font-size:11px; font-family:var(--mono); color:var(--muted2); }
+.preview-count      { font-size:12px; font-family:var(--mono); color:var(--green); font-weight:600; }
+
+.table-scroll { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:11px; }
+thead th {
+  background: var(--surface2);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  padding: 9px 13px;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  font-weight: 500;
+}
+tbody tr { border-bottom:1px solid var(--border); transition:background 0.12s; }
+tbody tr:last-child { border-bottom:none; }
+tbody tr:hover { background:var(--surface2); }
+tbody td { padding:8px 13px; font-family:var(--mono); white-space:nowrap; }
+.td-m { color:var(--muted2); }
+
+/* DOWNLOAD */
+.dl-btn {
+  display: none;
+  width: 100%;
+  background: linear-gradient(135deg, var(--purple) 0%, var(--accent) 100%);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 15px;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  box-shadow: 0 6px 24px rgba(124,58,237,0.4);
+}
+.dl-btn.visible { display:block; }
+.dl-btn:hover   { opacity:0.88; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">🏎</div>
+  <div class="header-text">
+    <h1>Gerador de Base NPS</h1>
+    <p>b2c · disparo de pesquisa nps</p>
+  </div>
+  <span class="header-badge">v2.0</span>
+</div>
+
+<!-- CARDS -->
+<div class="section-label">Planilhas de entrada</div>
+<div class="cards-grid">
+
+  <!-- PEDIDOS -->
+  <div class="upload-card" id="card-pedidos">
+    <div class="card-head">
+      <div class="card-icon">📦</div>
+      <div>
+        <div class="card-title">Planilha de Pedidos</div>
+        <div class="card-sub">1 arquivo · até 90 dias</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="drop-area" id="drop-pedidos">
+        <input type="file" accept=".xlsx" onchange="loadPedidos(this)"/>
+        <div class="drop-hint">Clique ou arraste o .xlsx aqui</div>
+      </div>
+      <div id="pedidos-tags" style="display:none; flex-direction:column; gap:6px;"></div>
+      <div class="card-note">Nome · CPF · E-mail · Telefone · Ordem SAP</div>
+    </div>
+  </div>
+
+  <!-- TRACKING -->
+  <div class="upload-card" id="card-tracking">
+    <div class="card-head">
+      <div class="card-icon">📍</div>
+      <div>
+        <div class="card-title">Planilha de Tracking</div>
+        <div class="card-sub">até 3 arquivos · .xlsx ou .csv · 30 dias cada</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="drop-area" id="drop-tracking">
+        <input type="file" accept=".xlsx,.csv" multiple onchange="loadTracking(this)"/>
+        <div class="drop-hint">Clique ou arraste .xlsx ou .csv aqui</div>
+      </div>
+      <div id="tracking-tags" style="display:none; flex-direction:column; gap:6px;"></div>
+      <label class="add-file-btn" id="add-tracking-btn" style="display:none">
+        <input type="file" accept=".xlsx,.csv" multiple onchange="loadTracking(this)"/>
+        + Adicionar mais arquivos
+      </label>
+      <div class="card-note">Transportadora · CD de Origem · Data Entrega</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- CONTROLS -->
+<div class="controls">
+  <div class="controls-title">Filtros de geração</div>
+  <div class="controls-row">
+    <div class="ctrl-group">
+      <span class="ctrl-label">Canal</span>
+      <input type="text" id="filtro-canal" value="B2C" placeholder="ex: B2C" class="ctrl-text"/>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Loja</span>
+      <input type="text" id="filtro-loja" value="" placeholder="ex: Nome da loja" class="ctrl-text"/>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">De</span>
+      <input type="date" id="dt-from"/>
+    </div>
+    <span class="date-sep">→</span>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Até</span>
+      <input type="date" id="dt-to"/>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Atalhos</span>
+      <div class="quick-btns">
+        <button class="qbtn" onclick="setRange(7,this)">7d</button>
+        <button class="qbtn active" onclick="setRange(15,this)">15d</button>
+        <button class="qbtn" onclick="setRange(30,this)">30d</button>
+        <button class="qbtn" onclick="setRange(60,this)">60d</button>
+        <button class="qbtn" onclick="setRange(90,this)">90d</button>
+      </div>
+    </div>
+    <button class="run-btn" id="run-btn" onclick="processar()">Gerar Base</button>
+  </div>
+</div>
+
+<!-- LOG -->
+<div class="log-box" id="log-box"></div>
+
+<!-- PREVIEW -->
+<div class="preview-wrap" id="preview-wrap">
+  <div class="preview-head">
+    <span class="preview-head-title">Prévia da base gerada</span>
+    <span class="preview-count" id="preview-count"></span>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead><tr>
+        <th>Nome Cliente</th><th>CPF/CNPJ</th><th>E-mail</th><th>Telefone</th>
+        <th>Ordem SAP</th><th>Transportadora</th><th>CD de Origem</th>
+        <th>Data Entrega</th><th>Data Base</th>
+      </tr></thead>
+      <tbody id="preview-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- DOWNLOAD -->
+<button class="dl-btn" id="dl-btn" onclick="baixar()">⬇ Baixar planilha .xlsx</button>
+
+<script>
+let pedidosData   = null;
+let trackingFiles = [];
+let resultData    = [];
+
+/* ── DATAS ─────────────────────────────────── */
+function fmtDateInput(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function initDates() {
+  const today = new Date();
+  const from  = new Date(); from.setDate(today.getDate() - 15);
+  document.getElementById('dt-to').value   = fmtDateInput(today);
+  document.getElementById('dt-from').value = fmtDateInput(from);
+  document.getElementById('dt-to').max     = fmtDateInput(today);
+}
+
+function setRange(days, btn) {
+  document.querySelectorAll('.qbtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const today = new Date(), from = new Date();
+  from.setDate(today.getDate() - days);
+  document.getElementById('dt-to').value   = fmtDateInput(today);
+  document.getElementById('dt-from').value = fmtDateInput(from);
+}
+
+['dt-from','dt-to'].forEach(id =>
+  document.getElementById(id).addEventListener('change', () =>
+    document.querySelectorAll('.qbtn').forEach(b => b.classList.remove('active'))
+  )
+);
+
+initDates();
+
+/* ── CSV ───────────────────────────────────── */
+function readCsv(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => {
+      try {
+        const text = e.target.result;
+        // detecta separador: ponto-vírgula ou vírgula
+        const firstLine = text.split(/\r?\n/)[0] || '';
+        const sep = (firstLine.split(';').length > firstLine.split(',').length) ? ';' : ',';
+        const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+        if (lines.length < 2) { res([]); return; }
+        const headers = lines[0].split(sep).map(h => h.replace(/^"|"$/g,'').trim());
+        const rows = [];
+        for (let i = 1; i < lines.length; i++) {
+          // parser simples que respeita campos entre aspas
+          const cols = [];
+          let cur = '', inQ = false;
+          for (let c = 0; c < lines[i].length; c++) {
+            const ch = lines[i][c];
+            if (ch === '"') { inQ = !inQ; }
+            else if (ch === sep && !inQ) { cols.push(cur); cur = ''; }
+            else { cur += ch; }
+          }
+          cols.push(cur);
+          const obj = {};
+          headers.forEach((h, idx) => { obj[h] = cols[idx] !== undefined ? cols[idx].replace(/^"|"$/g,'').trim() : null; });
+          rows.push(obj);
+        }
+        res(rows);
+      } catch(err) { rej(err); }
+    };
+    r.onerror = rej;
+    r.readAsText(file, 'UTF-8');
+  });
+}
+
+/* ── XLSX ──────────────────────────────────── */
+function readXlsx(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type:'array', cellDates:true });
+        res(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:null, raw:false }));
+      } catch(err) { rej(err); }
+    };
+    r.onerror = rej;
+    r.readAsArrayBuffer(file);
+  });
+}
+
+/* ── TELEFONE ──────────────────────────────── */
+function cleanPhone(raw) {
+  if (!raw) return '';
+  const parts = String(raw).trim().split(/\s+(?=\d{2}\s)/);
+  return parts[0].replace(/\D/g,'');
+}
+
+/* ── ID NORMALIZADO ────────────────────────── */
+function normId(val) {
+  return val ? String(val).replace(/^\d+-/,'').trim() : '';
+}
+
+/* ── LOG ───────────────────────────────────── */
+function log(msg, type='info') {
+  const b = document.getElementById('log-box');
+  b.classList.add('visible');
+  b.innerHTML += `<div class="log-${type}">${msg}</div>`;
+  b.scrollTop = b.scrollHeight;
+}
+function clearLog() {
+  const b = document.getElementById('log-box');
+  b.innerHTML = ''; b.classList.remove('visible');
+}
+
+/* ── PEDIDOS ───────────────────────────────── */
+async function loadPedidos(input) {
+  const file = input.files[0]; if (!file) return;
+  const dropArea = document.getElementById('drop-pedidos');
+  dropArea.querySelector('.drop-hint').textContent = 'Carregando...';
+  try {
+    pedidosData = await readXlsx(file);
+    const tags = document.getElementById('pedidos-tags');
+    tags.innerHTML = `<div class="file-tag">
+      <span>✅</span>
+      <span class="file-tag-name">${file.name}</span>
+      <span class="file-tag-count">${pedidosData.length} linhas</span>
+      <button class="file-tag-remove" onclick="removePedidos()">✕</button>
+    </div>`;
+    tags.style.display = 'flex';
+    dropArea.style.display = 'none';
+    document.getElementById('card-pedidos').classList.add('loaded');
+  } catch(e) {
+    alert('Erro ao ler o arquivo.');
+    dropArea.querySelector('.drop-hint').textContent = 'Clique ou arraste o .xlsx aqui';
+  }
+}
+
+function removePedidos() {
+  pedidosData = null;
+  document.getElementById('pedidos-tags').style.display = 'none';
+  document.getElementById('pedidos-tags').innerHTML = '';
+  document.getElementById('drop-pedidos').style.display = 'block';
+  document.getElementById('drop-pedidos').querySelector('.drop-hint').textContent = 'Clique ou arraste o .xlsx aqui';
+  document.getElementById('card-pedidos').classList.remove('loaded');
+}
+
+/* ── TRACKING ──────────────────────────────── */
+async function loadTracking(input) {
+  for (const file of Array.from(input.files)) {
+    if (trackingFiles.find(f => f.name === file.name)) continue;
+    if (trackingFiles.length >= 3) { alert('Máximo de 3 arquivos de tracking.'); break; }
+    try {
+      const isCsv = file.name.toLowerCase().endsWith('.csv');
+      const rows = isCsv ? await readCsv(file) : await readXlsx(file);
+      trackingFiles.push({ name: file.name, rows });
+    } catch(e) { alert(`Erro ao ler ${file.name}`); }
+  }
+  input.value = '';
+  renderTracking();
+}
+
+function removeTracking(name) {
+  trackingFiles = trackingFiles.filter(f => f.name !== name);
+  renderTracking();
+}
+
+function renderTracking() {
+  const tags    = document.getElementById('tracking-tags');
+  const drop    = document.getElementById('drop-tracking');
+  const addBtn  = document.getElementById('add-tracking-btn');
+  const card    = document.getElementById('card-tracking');
+
+  if (!trackingFiles.length) {
+    tags.style.display = 'none'; tags.innerHTML = '';
+    drop.style.display = 'block'; addBtn.style.display = 'none';
+    card.classList.remove('loaded'); return;
+  }
+
+  card.classList.add('loaded');
+  tags.style.display = 'flex';
+  tags.innerHTML = trackingFiles.map(f => `
+    <div class="file-tag">
+      <span>✅</span>
+      <span class="file-tag-name">${f.name}</span>
+      <span class="file-tag-count">${f.rows.length} linhas</span>
+      <button class="file-tag-remove" onclick="removeTracking('${f.name}')">✕</button>
+    </div>`).join('');
+
+  drop.style.display = 'none';
+  addBtn.style.display = trackingFiles.length < 3 ? 'flex' : 'none';
+}
+
+/* ── DATES UTILS ───────────────────────────── */
+function parseDate(val) {
+  if (!val) return null;
+  if (val instanceof Date) return isNaN(val) ? null : val;
+  const d = new Date(val); return isNaN(d) ? null : d;
+}
+
+function fmtDate(val) {
+  const d = parseDate(val); if (!d) return '';
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function hoje() { return fmtDate(new Date()); }
+
+/* ── PROCESSAR ─────────────────────────────── */
+async function processar() {
+  clearLog();
+  document.getElementById('preview-wrap').classList.remove('visible');
+  document.getElementById('dl-btn').classList.remove('visible');
+  resultData = [];
+
+  if (!pedidosData)          { alert('Adicione a planilha de Pedidos.'); return; }
+  if (!trackingFiles.length) { alert('Adicione ao menos um arquivo de Tracking.'); return; }
+
+  const dtFrom = document.getElementById('dt-from').value;
+  const dtTo   = document.getElementById('dt-to').value;
+  if (!dtFrom || !dtTo)     { alert('Selecione o período de entrega.'); return; }
+
+  const dateFrom = new Date(dtFrom + 'T00:00:00');
+  const dateTo   = new Date(dtTo   + 'T23:59:59');
+  if (dateFrom > dateTo)    { alert('A data "De" não pode ser maior que "Até".'); return; }
+
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true; btn.textContent = 'Processando...';
+
+  const filtroCanal = String(document.getElementById('filtro-canal').value || '').trim();
+  const filtroLoja  = String(document.getElementById('filtro-loja').value  || '').trim();
+
+  if (!filtroCanal) { alert('Preencha o campo Canal.'); btn.disabled=false; btn.textContent='Gerar Base'; return; }
+  if (!filtroLoja)  { alert('Preencha o campo Loja.');  btn.disabled=false; btn.textContent='Gerar Base'; return; }
+
+  log(`▶ Período: ${dtFrom} → ${dtTo} | Canal: ${filtroCanal} | Loja: ${filtroLoja}`, 'info');
+
+  // indexa pedidos
+  const pedidoMap = {};
+  for (const row of pedidosData) {
+    const id = normId(row['ID Pedido']); if (!id) continue;
+    pedidoMap[id] = row;
+  }
+  log(`↳ ${pedidosData.length} linhas · ${Object.keys(pedidoMap).length} pedidos indexados`, 'ok');
+
+  // junta trackings
+  let allTracking = [];
+  for (const tf of trackingFiles) {
+    allTracking = allTracking.concat(tf.rows);
+    log(`↳ Tracking "${tf.name}": ${tf.rows.length} linhas`, 'info');
+  }
+  log(`↳ Total: ${allTracking.length} linhas de tracking`, 'info');
+
+  // filtra
+  const filtrado = allTracking.filter(row => {
+    if (String(row['Canal']        || '').trim() !== filtroCanal)  return false;
+    if (String(row['Loja']         || '').trim() !== filtroLoja)   return false;
+    if (String(row['Situacao']     || '').trim() !== 'Finalizada') return false;
+    if (!String(row['Status Pedido'] || '').includes('Entregue'))  return false;
+    const d = parseDate(row['Data Entrega']); if (!d) return false;
+    return d >= dateFrom && d <= dateTo;
+  });
+  log(`↳ ${filtrado.length} entregas ${filtroCanal}/${filtroLoja}/Finalizadas no período`, 'ok');
+
+  if (!filtrado.length) {
+    log('⚠ Nenhuma entrega encontrada. Ajuste o período.', 'warn');
+    btn.disabled = false; btn.textContent = 'Gerar Base'; return;
+  }
+
+  // ordena desc para manter mais recente no dedup
+  filtrado.sort((a,b) => (parseDate(b['Data Entrega'])||new Date(0)) - (parseDate(a['Data Entrega'])||new Date(0)));
+
+  // cruzamento + dedup
+  const seen = new Set(), semMatch = [], linhas = [], dataHoje = hoje();
+
+  for (const tk of filtrado) {
+    const id     = normId(tk['Pedido Lojista']);
+    const pedido = pedidoMap[id];
+    if (!pedido) { semMatch.push(id); continue; }
+
+    const email = String(pedido['E-mail']   || '').trim().toLowerCase();
+    const cpf   = String(pedido['CPF/CNPJ'] || '').replace(/\D/g,'');
+    const key   = `${email}|${cpf}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    linhas.push({
+      'Nome Cliente':  String(pedido['Nome Cliente'] || '').trim(),
+      'CPF/CNPJ':      cpf,
+      'E-mail':        email,
+      'Telefone':      cleanPhone(pedido['Telefone']),
+      'Ordem SAP':     pedido['Ordem SAP'] ? (Number(pedido['Ordem SAP']) || pedido['Ordem SAP']) : '',
+      'Transportadora': String(tk['Transportadora'] || '').trim(),
+      'CD de Origem':  String(tk['CD de origem']   || '').trim(),
+      'Data Entrega':  fmtDate(tk['Data Entrega']),
+      'Data Base':     dataHoje,
+    });
+  }
+
+  if (semMatch.length) log(`⚠ ${semMatch.length} pedidos do tracking sem match`, 'warn');
+  log(`✓ ${linhas.length} registros únicos (dedup e-mail + CPF)`, 'ok');
+
+  if (!linhas.length) {
+    log('⚠ Nenhum registro gerado. Verifique se os IDs batem.', 'warn');
+    btn.disabled = false; btn.textContent = 'Gerar Base'; return;
+  }
+
+  resultData = linhas;
+
+  // preview
+  const tbody = document.getElementById('preview-body');
+  tbody.innerHTML = '';
+  linhas.slice(0,50).forEach(r => {
+    tbody.innerHTML += `<tr>
+      <td>${r['Nome Cliente']}</td>
+      <td class="td-m">${r['CPF/CNPJ']}</td>
+      <td class="td-m">${r['E-mail']}</td>
+      <td class="td-m">${r['Telefone']}</td>
+      <td class="td-m">${r['Ordem SAP']}</td>
+      <td>${r['Transportadora']}</td>
+      <td class="td-m">${r['CD de Origem']}</td>
+      <td class="td-m">${r['Data Entrega']}</td>
+      <td class="td-m">${r['Data Base']}</td>
+    </tr>`;
+  });
+
+  document.getElementById('preview-count').textContent =
+    `${linhas.length} registros${linhas.length>50?' · exibindo 50':''}`;
+  document.getElementById('preview-wrap').classList.add('visible');
+  document.getElementById('dl-btn').classList.add('visible');
+  log(`✅ Base pronta com ${linhas.length} registros!`, 'ok');
+  btn.disabled = false; btn.textContent = 'Gerar Base';
+}
+
+/* ── DOWNLOAD ──────────────────────────────── */
+function baixar() {
+  if (!resultData.length) return;
+  const ws = XLSX.utils.json_to_sheet(resultData);
+  ws['!cols'] = [{wch:30},{wch:16},{wch:34},{wch:14},{wch:12},{wch:36},{wch:36},{wch:14},{wch:12}];
+
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let R = range.s.r + 1; R <= range.e.r; R++) {
+    const c = ws[XLSX.utils.encode_cell({r:R, c:4})];
+    if (c && c.v !== '' && !isNaN(Number(c.v))) { c.t='n'; c.v=Number(c.v); }
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Base NPS');
+  XLSX.writeFile(wb, `base_nps_${hoje()}.xlsx`);
+}
+</script>
+</body>
+</html>
